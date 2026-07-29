@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Genrenator</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #111;
+      color: #eee;
+      padding: 2rem;
+    }
+    main {
+      text-align: center;
+      max-width: 600px;
+    }
+    h1 {
+      margin: 0 0 1rem;
+      font-size: 1.25rem;
+      font-weight: 400;
+      color: #888;
+    }
+    #genre {
+      margin: 0 0 2rem;
+      font-size: clamp(1.5rem, 5vw, 3rem);
+      font-weight: 700;
+      min-height: 1.2em;
+      color: #fff;
+    }
+    button {
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 999px;
+      background: #3b82f6;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #2563eb; }
+    button:disabled { background: #555; cursor: wait; }
+    #error {
+      margin-top: 1rem;
+      color: #ef4444;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Genre musical aléatoire</h1>
+    <p id="genre" aria-live="polite">Chargement…</p>
+    <button id="new" type="button">Nouveau genre</button>
+    <p id="error" aria-live="polite"></p>
+  </main>
+
+  <script>
+    const genreEl = document.getElementById('genre');
+    const errorEl = document.getElementById('error');
+    const btn = document.getElementById('new');
+
+    let genreCbCounter = 0;
+
+    // ponytail: JSONP car l'API Binary Jazz (WP REST) ne sert pas de CORS utilisable côté client.
+    function fetchGenreJsonp() {
+      return new Promise((resolve, reject) => {
+        const cbName = '__genreCb_' + (++genreCbCounter);
+        const script = document.createElement('script');
+        let settled = false;
+        let timer;
+
+        function cleanup() {
+          clearTimeout(timer);
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+        }
+
+        window[cbName] = function (data) {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          resolve(data);
+        };
+
+        script.onerror = function () {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error('network'));
+        };
+
+        timer = setTimeout(function () {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error('network'));
+        }, 10000);
+
+        script.src = 'https://binaryjazz.us/wp-json/genrenator/v1/genre/?_jsonp=' + encodeURIComponent(cbName);
+        document.head.appendChild(script);
+      });
+    }
+
+    async function loadGenre() {
+      btn.disabled = true;
+      errorEl.textContent = '';
+      genreEl.textContent = 'Chargement…';
+
+      const networkMsg = 'Impossible de charger un genre. Vérifiez votre connexion réseau.';
+      const formatMsg = 'Réponse inattendue de l\'API.';
+
+      try {
+        const data = await fetchGenreJsonp();
+        const genre = Array.isArray(data) ? data[0] : data;
+        if (typeof genre !== 'string' || !genre.trim()) {
+          throw new Error('format');
+        }
+        genreEl.textContent = genre;
+      } catch (err) {
+        genreEl.textContent = '';
+        errorEl.textContent = err.message === 'format' ? formatMsg : networkMsg;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    btn.addEventListener('click', loadGenre);
+    loadGenre();
+  </script>
+</body>
+</html>
