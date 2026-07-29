@@ -7,6 +7,7 @@
     btn.disabled = true;
     errorEl.textContent = '';
     genreEl.textContent = 'Chargement…';
+    genreEl.classList.add('loading');
 
     const networkMsg = 'Impossible de charger un genre. Vérifiez votre connexion réseau.';
     const formatMsg = 'Réponse inattendue de l\'API.';
@@ -23,6 +24,7 @@
       errorEl.textContent = err.message === 'format' ? formatMsg : networkMsg;
     } finally {
       btn.disabled = false;
+      genreEl.classList.remove('loading');
     }
   }
 
